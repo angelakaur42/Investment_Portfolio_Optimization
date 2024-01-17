@@ -1,0 +1,41 @@
+import time
+from datetime import datetime,timedelta
+import pandas as pd
+import pickle
+import yfinance as yf
+
+
+period1=int(time.mktime(datetime(2019,2,1, 23, 59).timetuple()))
+period2=int(time.mktime(datetime(2024,2,1, 23, 59).timetuple()))
+interval='1d'
+
+df_combined=pd.DataFrame()
+#etf_close_df=pd.DataFrame()
+
+other_tickers=['MARA', 'TSLA', 'AAL', 'BAC', 'LCID','AMD', 'RIOT', 'NIO', 'SOFI','DAL','PLUG','UEC','RIVN','BCS', #mix
+               'CRGE', 'ASTA', 'BKMP', 'VLCN', 'BCEL','GAHC','SPZI', 'COWI', 'AITX', #smallcap
+               'CHWY', 'RUN', 'LYFT', 'PARA', 'UPST', 'ARDX','CVNA','GPS'#midcap
+               ]  
+
+#ETF_tickers=['SPY', 'BND', 'GLD', 'QQQ', 'VTI']
+
+# for ticker in other_tickers:
+#     query_string=f'https://query1.finance.yahoo.com/v7/finance/download/{ticker}?period1={period1}&period2={period2}&interval={interval}&events=history&includeAdjustedClose=true'
+#     df_ticker=pd.read_csv(query_string)
+#     df_combined = pd.concat([df_combined, df_ticker.assign(ticker_name=ticker)], ignore_index=True)
+
+end_date=datetime.today()
+start_date=end_date-timedelta(days=5*365)
+print(start_date)
+
+for ticker in other_tickers:
+    data=yf.download(ticker, start=start_date, end=end_date)
+    df_combined[ticker]=data['Close']
+
+with open("Yahoo-Finance-Scraper.pkl", "wb") as f:  # Replace "filename.pkl" with your desired name
+    pickle.dump(df_combined, f)
+
+# with open("Yahoo-Finance-ETF-Scraper.pkl", "wb") as f:  # Replace "filename.pkl" with your desired name
+#     pickle.dump(etf_close_df, f)
+print(df_combined)
+
