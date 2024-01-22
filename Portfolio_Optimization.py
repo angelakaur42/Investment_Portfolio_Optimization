@@ -20,9 +20,14 @@ log_returns=log_returns.dropna()
 cov_matrix=log_returns.cov()*252
 #print(cov_matrix)
 
-#define portfolio performance metrics
+#fetch the risk-free-rate
+fred=Fred(api_key='ae17d21b6f9ea45d731a285cc3579d70')
+ten_year_treasury_rate=fred.get_series_latest_release('GS10')/100
+risk_free_rate=ten_year_treasury_rate.iloc[-1]
+print(risk_free_rate)
 
-#calculate the portfolio standard deviation
+
+#calculate the portfolio standard deviation/volatility
 def standard_deviation (weights, cov_matrix):
     variance=weights.T @ cov_matrix @weights 
     return np.sqrt(variance)
@@ -35,30 +40,46 @@ def expected_returns(weights, log_returns):
 def sharpe_ratio(weights, log_returns, cov_matrix, risk_free_rate):
     return (expected_returns (weights, log_returns)*risk_free_rate)/standard_deviation(weights, cov_matrix)
 
-
-#---------------Portfolio Optimization--------------------
-#risk_free_rate=.02
-
-#set the risk-free-rate
-fred=Fred(api_key='ae17d21b6f9ea45d731a285cc3579d70')
-ten_year_treasury_rate=fred.get_series_latest_release('GS10')/100
-risk_free_rate=ten_year_treasury_rate.iloc[-1]
-print(risk_free_rate)
-
-def neg_sharpe_ratio(weights, log_returns, cov_matrix, risk_free_rate):
-    return -sharpe_ratio(weights, log_returns, cov_matrix, risk_free_rate)
-
 #setting the constraints and bounds
 constraints={'type':'eq','fun':lambda weights: np.sum(weights)-1}
 bounds=[(0, 0.4) for _ in range(len(tickers))] #we don't want an asset to have over 40% allocation
 
+#Initialize weights
 initial_weights=np.array([1/len(tickers)]*len(tickers))
 
-optimized_results=minimize(neg_sharpe_ratio, initial_weights, args=(log_returns, cov_matrix, risk_free_rate), method='SLSQP', constraints=constraints, bounds=bounds)
+#---------------------------------Portfolio Optimization----------------------------------------
 
-#--------------Analyze the Optimal Portfolio-----------------
+#This function optimizes portfolio weights to maximize Sharpe Ratio using Mean-Variance Optimization
+#MVO aims for a balance between expected return and risk through Sharpe Ratio maximization.
+def maximize_sharpe_ratio(log_returns, cov_matrix, tickers, initial_weights):
+
+    def neg_sharpe_ratio(weights, log_returns, cov_matrix, risk_free_rate):
+        return -sharpe_ratio(weights, log_returns, cov_matrix, risk_free_rate)
+    
+    #Perform Optimization
+    optimized_results=minimize(neg_sharpe_ratio, initial_weights, args=(log_returns, cov_matrix, risk_free_rate), method='SLSQP', constraints=constraints, bounds=bounds)
+    optimal_weights=optimized_results.x
+
+    return optimal_weights
+
+#Minimum volatility prioritizes reducing risk (volatility) even if it potentially lowers expected return.
+def minimize_volatility(log_returns, cov_matrix, tickers, initial_weights):
+    
+    def portfolio_volatility(weights, cov_matrix):
+        return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+#   #Perform optimization
+    optimized_results=minimize(portfolio_volatility,initial_weights, args=(cov_matrix),method='SLSQP', constraints=constraints, bounds=bounds)
+
+    optimal_weights=optimized_results.x
+
+    return optimal_weights
+
+    
+#---------------------------Analyze the Optimal Portfolio-------------------------------------
 #obtain optimal weights and calculate the expected portfolio return, expected volatility, and sharpe ratio for the optimal portfolio
-optimal_weights=optimized_results.x
+
+optimal_weights=minimize_volatility(log_returns, cov_matrix, tickers, initial_weights)
 
 print("Optimal Weights:")
 for ticker, weight in zip(tickers, optimal_weights):
@@ -73,7 +94,7 @@ print(f"Expected Annual Return {optimal_portfolio_return:.4f}")
 print(f"Expected Volatility: {optimal_portfolio_volatility:.4f}")
 print(f"Sharpe Ratio: {optimal_sharpe_ratio:.4f}")
 
-#Display the final portfolio on a plot
+#---------------------------Display the final portfolio on a plot---------------------------------
 
 top_10_indices=np.argsort(optimal_weights)[-10:]
 top_10_weights=optimal_weights[top_10_indices]
@@ -86,5 +107,6 @@ plt.xlabel('Assets')
 plt.ylabel('Optimal Weights')
 plt.title('Optimal Portfolio Weights')
 
-plt.show()
+#plt.show()
+
 

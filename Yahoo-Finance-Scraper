@@ -28,14 +28,22 @@ end_date=datetime.today()
 start_date=end_date-timedelta(days=5*365)
 print(start_date)
 
+#Grab close price for each stock in portfolio
 for ticker in other_tickers:
     data=yf.download(ticker, start=start_date, end=end_date)
     df_combined[ticker]=data['Close']
 
-with open("Yahoo-Finance-Scraper.pkl", "wb") as f:  # Replace "filename.pkl" with your desired name
-    pickle.dump(df_combined, f)
+#Grab market capitalization for each stock in portfolio
+mcaps={}
+for ticker in other_tickers:
+    stock=yf.Ticker(ticker)
+    mcaps[ticker]=stock.info['marketCap']
 
-# with open("Yahoo-Finance-ETF-Scraper.pkl", "wb") as f:  # Replace "filename.pkl" with your desired name
-#     pickle.dump(etf_close_df, f)
-print(df_combined)
+data_to_pickle = {'dataframe': df_combined, 'dictionary': mcaps}
+
+with open("Yahoo-Finance-Scraper.pkl", "wb") as f:  # Replace "filename.pkl" with your desired name
+    pickle.dump(data_to_pickle, f)
+
+
+
 
